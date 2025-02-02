@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hang Felismerős Játék</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f8ff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container, .mode-selection {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .choice, .mode-button {
+      background-color: #007BFF;
+      color: white;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      cursor: pointer;
+      border: none;
+      width: 80%;
+      transition: background-color 0.3s ease;
+    }
+    .choice:hover, .mode-button:hover {
+      opacity: 0.9;
+    }
+    .correct {
+      background-color: #4CAF50 !important;
+    }
+    .incorrect {
+      background-color: #FF0000 !important;
+    }
+    #nextButton, #playButton {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #nextButton:hover, #playButton:hover {
+      background-color: #0056b3;
+    }
+    .score, .attempts {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    #audioPlayer {
+      margin-top: 20px;
+    }
+    #gameContainer {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="modeSelection" class="mode-selection">
+    <h1>Válassz játékmódot</h1>
+    <button class="mode-button" onclick="startGameMode('sound')">Hang</button>
+    <button class="mode-button" onclick="startGameMode('music')">Zene</button>
+  </div>
+
+  <div id="gameContainer" class="container">
+    <h1 id="gameTitle">Hang Felismerős Játék</h1>
+    <p id="question">Melyik hangot hallod?</p>
+    <div id="choices" class="choices"></div>
+    <button id="nextButton" onclick="nextQuestion()">Következő</button>
+    <div id="score" class="score">Pont: 0</div>
+    <div id="attempts" class="attempts">Hibalehetőségek: 🎵🎵🎵</div>
+    <div id="audioPlayer" class="audio-player">
+      <button id="playButton">Lejátszás</button>
+      <audio id="audio" controls style="display: none;"></audio>
+    </div>
+  </div>
+
+  <script>
+    let score = 0;
+    let currentQuestionIndex = 0;
+    let currentQuestions = [];
+    let attemptsLeft = 3;
+    let questionAnswered = false;
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    const totalQuestions = 25;
+
+    const soundQuestions = [
+      {
+        question: "Melyik hangot hallod? (1/25)",
+        correctAnswer: "Orbán Viktor",
+        options: ["Orbán Ervin", "Radics Attila", "Gyurcsány Ferenc", "Orbán Viktor"],
+        audioSrc: "Orbán Viktor.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (2/25)",
+        correctAnswer: "Kutya",
+        options: ["Macska", "Kutya", "Teknős", "Koala"],
+        audioSrc: "Agresszív Kaukázusi Juhászkutya.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (3/25)",
+        correctAnswer: "Szaniszló",
+        options: ["Péter", "Tamás", "Szamiszló", "Szaniszló"],
+        audioSrc: "Bözsi néni, itt a tyúk! - Szaniszló a TV2-n - tv2.huaktiv.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (4/25)",
+        correctAnswer: "Ferike",
+        options: ["Ferike", "Zolika", "Lalika", "Petike"],
+        audioSrc: "Ekszöszájzbuk.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (5/25)",
+        correctAnswer: "Elefánt",
+        options: ["Koala", "Trombita", "Elefánt", "Zsiráf"],
+        audioSrc: "Elefánt hangja!.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (6/25)",
+        correctAnswer: "Gyurcsány Ferenc",
+        options: ["Gyurcsány Ferenc", "Orbán Viktor", "Szabó Péter", "Jakab Péter"],
+        audioSrc: "Gyurcsány.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (7/25)",
+        correctAnswer: "Dominik",
+        options: ["Zsombor", "Dominika", "Dominik", "Dávid"],
+        audioSrc: "Dominik.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (8/25)",
+        correctAnswer: "Mészáros Lőrincz",
+        options: ["Mucsi Zoltán", "Jakab Péter", "Mészáros Lőrincz", "Orbán Viktor"],
+        audioSrc: "És ezt miből számolta ki_.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (9/25)",
+        correctAnswer: "Deutsch Tamás",
+        options: ["Deutsch Tamás", "Mucsi Zoltán", "Orbán Viktor", "Jakab Péter"],
+        audioSrc: "Ez Deutsch Tamás performansza az Európai Parlamentben.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (10/25)",
+        correctAnswer: "Fülemüle",
+        options: ["Zebra", "Fekete rigó", "Fülemüle", "Varjú"],
+        audioSrc: "fülemüle.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (11/25)",
+        correctAnswer: "Vitályos Eszter",
+        options: ["Vitályos Lili", "Vitályos Eszter", "Vitályos Marika", "Vitályos Lilla"],
+        audioSrc: "Kormány_ nem penész, zsíros por van a kórházban [sECTv2WwCo8].mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (12/25)",
+        correctAnswer: "Németh Szilárdnak",
+        options: ["Deutsch Tamás", "Orbán Viktor", "Németh Szilárdnak", "Mucsi Zoltán"],
+        audioSrc: "Lajos Balázs Németh Szilárdnak_ _Na, csak kinyögted_ [abpUocaKi8k].mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (13/25)",
+        correctAnswer: "Lakatos Brendon",
+        options: ["Lakatos Alfonz", "Lakatos Brendon", "Lakatos Szilárd", "Lakatos Lajos"],
+        audioSrc: "LAKATOS BRENDON Kaját rendel ! 2017.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (14/25)",
+        correctAnswer: "Fekete rigó",
+        options: ["Fekete rigó", "Fülemüle", "Zebra", "Varjú"],
+        audioSrc: "Madárhangok - Fekete rigó.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (15/25)",
+        correctAnswer: "Hang 5",
+        options: ["Hang 1", "Hang 2", "Hang 3", "Hang 4"],
+        audioSrc: "Morvai Krisztina_ Egy nap a hivatalban.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (16/25)",
+        correctAnswer: "Mucsi Zoltán",
+        options: ["Mucsi János", "Mucsi Levente", "Mucsi Károly", "Mucsi Zoltán"],
+        audioSrc: "Mucsi Zoltán Ne fütyülj_ [E3JQ_g_2tHI].mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (17/25)",
+        correctAnswer: "Németh Szilárd",
+        options: ["Németh Szilárd", "Németh Alfonz", "Németh Zoltán", "Mucsi Zoltán"],
+        audioSrc: "Németh Szilárd_ Giroszos kebabos turkisi kebab mekkdánelc izémittudoménmicsoda.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (18/25)",
+        correctAnswer: "Péter",
+        options: ["Ádám", "Feri", "Lajos", "Péter"],
+        audioSrc: "Péter - Cotton Eye Joe _) (egy kicsit másképp, mint a megszokott).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (19/25)",
+        correctAnswer: "Pingvin",
+        options: ["Kutya", "Pingvin", "Zsiráf", "Macska"],
+        audioSrc: "Pingvin hangja!.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (20/25)",
+        correctAnswer: "Farkas",
+        options: ["Kutya", "Kecske", "Róka", "Farkas"],
+        audioSrc: "Red Wolf_s Twilight Howl.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (21/25)",
+        correctAnswer: "Fóka",
+        options: ["Kutya", "Fóka", "Pingvin", "Macska"],
+        audioSrc: "Seal - Sound Effect  ProSounds.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (22/25)",
+        correctAnswer: "Széncinege",
+        options: ["Széncinege", "Pingvin", "Fóka", "Macska"],
+        audioSrc: "széncinege.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (23/25)",
+        correctAnswer: "Alfonz",
+        options: ["Alfonz", "Szipus", "Péter", "Zoltán"],
+        audioSrc: "Szipus Alfonz.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik hangot hallod? (24/25)",
+        correctAnswer: "Teknős",
+        options: ["Pingvin", "Széncinege", "Teknős", "Fóka"],
+        audioSrc: "Turtle - Sound Effect.mp3" // Példa hangfájl
+      },
+      {
+      question: "Melyik hangot hallod? (25/25)",
+        correctAnswer: "Macska",
+        options: ["Széncinege", "Tigris", "Fóka", "Pingvin"],
+        audioSrc: "Vicces cica panasz. Funny cat voice. Lustige Katzenbeschwerde..mp3" // Példa hangfájl
+      }
+    ];
+
+    const musicQuestions = [
+      {
+        question: "Melyik dalt hallod? (1/25)",
+        correctAnswer: "KUKÁSAUTÓ",
+        options: ["LEVÉL", "PANNONIA", "KUKÁSAUTÓ", "SUV"],
+        audioSrc: "DESH - KUKÁSAUTÓ (OFFICIAL MUSIC VIDEO).mp3" // Példa zene fájl
+      },
+      {
+        question: "Melyik dalt hallod? (2/25)",
+        correctAnswer: "Csurran cseppen",
+        options: ["Pillangó", "Visszapillantó", "Balhé", "Csurran cseppen"],
+        audioSrc: "Majka - Csurran, cseppen (official music video).mp3" // Példa zene fájl
+      },
+      {
+        question: "Melyik dalt hallod? (3/25)",
+        correctAnswer: "Shape of You",
+        options: ["Shape of You", "Zene 2", "Zene 3", "Zene 4"],
+        audioSrc: "Ed Sheeran - Shape of You (Official Music Video).mp3" // Példa zene fájl
+      },
+      {
+        question: "Melyik dalt hallod? (4/25)",
+        correctAnswer: "PANNONIA",
+        options: ["KUKÁSAUTÓ", "MOKKA", "PANNONIA", "STRAWBERRY"],
+        audioSrc: "DESH X YOUNG FLY X AZAHRIAH - PANNONIA.mp3" // Példa zene fájl
+      },
+      {
+        question: "Melyik dalt hallod? (5/25)",
+        correctAnswer: "Gyere Kislány",
+        options: ["Zene 1", "Zene 2", "Gyere Kislány", "Zene 4"],
+        audioSrc: "Fehér Krisztián - Gyere Kislány feat. Burai (Official Music Video).mp3" // Példa zene fájl
+      },
+      {
+        question: "Melyik dalt hallod?  (6/25)",
+        correctAnswer: "Szélcsend",
+        options: ["Hang 1", "Hang 2", "Hang 3", "Szélcsend"],
+        audioSrc: "Follow The Flow - Szélcsend [OFFICIAL MUSIC VIDEO].mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (7/25)",
+        correctAnswer: "ROLLIN",
+        options: ["ROLLIN", "STRAWBERRY", "ELDORALDO", "HARAMIA"],
+        audioSrc: "DESH, YOUNG FLY, KKEVIN - ROLLIN_ (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (8/25)",
+        correctAnswer: "Megcsináltad",
+        options: ["Hang 1", "Hang 2", "Hang 3", "Megcsináltad"],
+        audioSrc: "G.w.M - Megcsináltad Official 4K Videoclip.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (9/25)",
+        correctAnswer: "SANDELA",
+        options: ["Hang 1", "Hang 2", "SANDELA", "Hang 4"],
+        audioSrc: "HENN - SANDELA (Official Visual Audio).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (10/25)",
+        correctAnswer: "MILLIÓK",
+        options: ["Hang 1", "Hang 2", "Hang 3", "MILLIÓK"],
+        audioSrc: "JABER X T. Danny - MILLIÓK (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (11/25)",
+        correctAnswer: "Óh Szív Nyugodj",
+        options: ["Óh Szív Nyugodj", "Hang 2", "Hang 3", "Hang 4"],
+        audioSrc: "József Attila & Ágnes- Óh Szív Nyugodj.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (12/25)",
+        correctAnswer: "Hideg az éj",
+        options: ["Hang 1", "Hang 2", "Hideg az éj", "Hang 4"],
+        audioSrc: "KISS KEVIN  Hideg az éj  Official Music Video.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (13/25)",
+        correctAnswer: "CSAKASZESZ",
+        options: ["Hang 1", "CSAKASZESZ", "Hang 3", "Hang 4"],
+        audioSrc: "KKevin - CSAKASZESZ (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (14/25)",
+        correctAnswer: "Csavargó",
+        options: ["Hang 1", "Hang 2", "Hang 3", "Csavargó"],
+        audioSrc: "KKevin -Csavargó ft. L.L.Junior (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (15/25)",
+        correctAnswer: "Prikezsia",
+        options: ["Prikezsia", "Hang 2", "Hang 3", "Hang 4"],
+        audioSrc: "Krisz x Jaki-Prikezsia (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (16/25)",
+        correctAnswer: "Hold Out",
+        options: ["Hang 1", "Hang 2", "Hang 3", "Hold Out"],
+        audioSrc: "Lithe - Hold Out (Official Music Video) ft. FRVRFRIDAY.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (17/25)",
+        correctAnswer: "Füttyös",
+        options: ["Balhé", "Utolsó falat", "Füttyös", "Hatodik emelet"],
+        audioSrc: "Majka X Curtis X Király Viktor - Füttyös.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (18/25)",
+        correctAnswer: "Azt beszélik a városban",
+        options: ["Azt beszélik a városban", "Hatodik emelet", "Holnaptól", "Sehovavaló"],
+        audioSrc: "Majka, Molnár Tamás - Azt beszélik a városban (OFFICIAL MUSIC VIDEO).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (19/25)",
+        correctAnswer: "Rajosan",
+        options: ["Fesztivál", "Rajosan", "Eyvallah", "Senorita"],
+        audioSrc: "MARIO  Rajosan  Official Music Video.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (20/25)",
+        correctAnswer: "EZ AZ ÁRA",
+        options: ["Joker a pakliban", "Cirkuszosan", "EZ AZ ÁRA", "RANDEVÚ"],
+        audioSrc: "Moriones - EZ AZ ÁRA.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (21/25)",
+        correctAnswer: "Skin",
+        options: ["Human", "The Right Way", "Skin", "What Do You Believe In? "],
+        audioSrc: "Rag_n_Bone Man - Skin (Official Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (22/25)",
+        correctAnswer: "SZÍVTIPRÓ",
+        options: ["M.I.L.F", "VIDÉKI CSAJSZI", "SZÍVTIPRÓ", "MILLIÓK"],
+        audioSrc: "T. Danny - SZÍVTIPRÓ (Official Music Video).mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (23/25)",
+        correctAnswer: "Oy Lele",
+        options: ["LEBEGÉS", "Oy Lele", "Ya Loma", "Trónfosztó"],
+        audioSrc: "VZS - Oy Lele.mp3" // Példa hangfájl
+      },
+      {
+        question: "Melyik dalt hallod? (24/25)",
+        correctAnswer: "Ego",
+        options: ["La La La", "Ego", "Mi Gente", "Trompeta"],
+        audioSrc: "Willy William - Ego (Clip Officiel).mp3" // Példa hangfájl
+      },
+      {
+      question: "Melyik dalt hallod? (25/25)",
+        correctAnswer: "Mesélek a bornak",
+        options: ["Tíz éven át", "Üzenet a távolból", "Hogyha fázom", "Mesélek a bornak"],
+        audioSrc: "4S Street - Mesélek a bornak (Official Video).mp3" // Példa hangfájl
+      }
+    ];
+
+    function startGameMode(mode) {
+      attemptsLeft = 3;
+      updateAttempts();
+      currentQuestions = mode === 'sound' ? soundQuestions : musicQuestions;
+      document.getElementById("gameTitle").textContent = mode === 'sound' ? "Hang Felismerős Játék" : "Zenei Kitalálós Játék";
+      document.getElementById("modeSelection").style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+      startGame();
+    }
+
+    function startGame() {
+      currentQuestionIndex = 0;
+      score = 0;
+      updateScore();
+      showQuestion(currentQuestionIndex);
+    }
+
+    function updateAttempts() {
+      document.getElementById("attempts").textContent = "Hibalehetőségek: " + "🎵".repeat(attemptsLeft);
+    }
+
+    function disableAllChoices() {
+      document.querySelectorAll(".choice").forEach(button => button.disabled = true);
+    }
+
+    function showQuestion(index) {
+      questionAnswered = false;
+      const questionObj = currentQuestions[index];
+      const questionText = document.getElementById("question");
+      const choicesDiv = document.getElementById("choices");
+      const audioElement = document.getElementById("audio");
+
+      questionText.textContent = questionObj.question;
+      choicesDiv.innerHTML = '';
+
+      questionObj.options.forEach(option => {
+        const choiceButton = document.createElement("button");
+        choiceButton.classList.add("choice");
+        choiceButton.textContent = option;
+        choiceButton.addEventListener("click", function() {
+          checkAnswer(option, questionObj.correctAnswer, this);
+        });
+        choicesDiv.appendChild(choiceButton);
+      });
+
+      audioElement.src = questionObj.audioSrc; // A megfelelő audio forrást állítjuk be
+      document.getElementById("playButton").onclick = () => audioElement.play();
+    }
+
+    function checkAnswer(selected, correct, button) {
+      if (selected === correct) {
+        score++;
+        questionAnswered = true;
+        updateScore();
+        button.classList.add("correct");
+        disableAllChoices();
+        setTimeout(nextQuestion, 1000);
+      } else {
+        button.classList.add("incorrect");
+        attemptsLeft--;
+        updateAttempts();
+        button.disabled = true;
+        if (attemptsLeft <= 0) {
+          alert("Elfogytak a hibalehetőségek! Játék vége.");
+          resetGame();
+        }
+      }
+    }
+
+    function nextQuestion() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < currentQuestions.length) {
+        showQuestion(currentQuestionIndex);
+      } else {
+        alert(`A játék véget ért! Összes pont: ${score}`);
+        resetGame();
+      }
+    }
+
+    function updateScore() {
+      document.getElementById("score").textContent = `Pont: ${score}`;
+    }
+
+    function resetGame() {
+      score = 0;
+      currentQuestionIndex = 0;
+      attemptsLeft = 3;
+      updateScore();
+      updateAttempts();
+      document.getElementById("modeSelection").style.display = "block";
+      document.getElementById("gameContainer").style.display = "none";
+    }
+  </script>
+</body>
+</html>
